@@ -21,3 +21,11 @@ A complete platform for collecting feedback from workshop attendees and automati
    ```bash
    git clone https://github.com/your-username/workshop-feedback-system.git
    cd workshop-feedback-system
+2. Install dependencies
+   npm install
+3. Add Firebase config to .env.local
+4. Run the dev server
+   npm run dev
+5. Deploy with Firebase
+   firebase deploy
+
