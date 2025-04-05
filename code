@@ -1,0 +1,105 @@
+// File: /app/form/[id]/page.tsx
+
+'use client';
+import { useEffect, useState } from 'react';
+import { db } from '@/firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  addDoc,
+  serverTimestamp,
+  updateDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
+import { useParams } from 'next/navigation';
+
+export default function StudentFeedbackForm() {
+  const { id } = useParams();
+  const [workshop, setWorkshop] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    course: '',
+    phone: '',
+    phoneOtp: '',
+    phoneVerified: false,
+    email: '',
+    emailOtp: '',
+    emailVerified: false,
+    feedback: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchWorkshop = async () => {
+      const docRef = doc(db, 'workshops', id as string);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setWorkshop(docSnap.data());
+      }
+    };
+    fetchWorkshop();
+  }, [id]);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const submissionRef = await addDoc(collection(db, 'submissions'), {
+      ...formData,
+      workshopId: id,
+      createdAt: serverTimestamp(),
+    });
+
+    // Trigger certificate generation
+    await fetch('/api/generate-certificate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        submissionId: submissionRef.id,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        workshopId: id,
+      }),
+    });
+
+    alert('Feedback submitted! Certificate will be sent.');
+    setIsSubmitting(false);
+  };
+
+  const allVerified = formData.phoneVerified && formData.emailVerified;
+
+  if (!workshop) return <p>Loading...</p>;
+
+  return (
+    <main className="max-w-2xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Workshop Feedback</h1>
+      <div className="space-y-2">
+        <p><strong>College:</strong> {workshop.college}</p>
+        <p><strong>Workshop:</strong> {workshop.workshop}</p>
+        <p><strong>Date:</strong> {workshop.date} <strong>Time:</strong> {workshop.time}</p>
+      </div>
+      <div className="grid gap-4">
+        <input className="p-2 border rounded" placeholder="Your Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+        <input className="p-2 border rounded" placeholder="Course" value={formData.course} onChange={e => setFormData({ ...formData, course: e.target.value })} />
+        <input className="p-2 border rounded" placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+        <button className="bg-blue-500 text-white px-3 py-1 rounded" onClick={() => alert('Send OTP to phone (TODO)')}>Send OTP</button>
+        <input className="p-2 border rounded" placeholder="Enter Phone OTP" value={formData.phoneOtp} onChange={e => setFormData({ ...formData, phoneOtp: e.target.value })} />
+        <button className="bg-green-500 text-white px-3 py-1 rounded" onClick={() => setFormData({ ...formData, phoneVerified: true })}>Verify Phone OTP</button>
+        <input className="p-2 border rounded" placeholder="Email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+        <button className="bg-blue-500 text-white px-3 py-1 rounded" onClick={() => alert('Send OTP to email (TODO)')}>Send OTP</button>
+        <input className="p-2 border rounded" placeholder="Enter Email OTP" value={formData.emailOtp} onChange={e => setFormData({ ...formData, emailOtp: e.target.value })} />
+        <button className="bg-green-500 text-white px-3 py-1 rounded" onClick={() => setFormData({ ...formData, emailVerified: true })}>Verify Email OTP</button>
+        <textarea className="p-2 border rounded" placeholder="Your Feedback" value={formData.feedback} onChange={e => setFormData({ ...formData, feedback: e.target.value })} />
+      </div>
+      <button
+        onClick={handleSubmit}
+        disabled={!allVerified || isSubmitting}
+        className={`mt-4 px-4 py-2 rounded ${!allVerified ? 'bg-gray-400' : 'bg-blue-600 text-white'}`}
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+      </button>
+    </main>
+  );
+}
